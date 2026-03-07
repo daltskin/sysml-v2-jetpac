@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jetpac SysML v2 — Learn SysML by Building Rockets</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+  <style>
+    /* ── ZX Spectrum-inspired palette ── */
+    :root {
+      --zx-black: #000000;
+      --zx-blue: #0022c7;
+      --zx-red: #d62816;
+      --zx-magenta: #d433ff;
+      --zx-green: #00c525;
+      --zx-cyan: #00c7c9;
+      --zx-yellow: #ccc82a;
+      --zx-white: #cacaca;
+      --zx-bright-blue: #002bfb;
+      --zx-bright-red: #ff331c;
+      --zx-bright-magenta: #ff40ff;
+      --zx-bright-green: #00f92f;
+      --zx-bright-cyan: #00fbfe;
+      --zx-bright-yellow: #ffea00;
+      --zx-bright-white: #ffffff;
+
+      --bg-deep: #05050f;
+      --bg-panel: #0a0a1a;
+      --bg-editor: #0c0e1a;
+      --border-glow: var(--zx-bright-cyan);
+      --text-primary: var(--zx-bright-white);
+      --text-dim: var(--zx-white);
+      --text-accent: var(--zx-bright-yellow);
+      --text-error: var(--zx-bright-red);
+      --text-success: var(--zx-bright-green);
+
+      --font-display: monospace;
+      --font-code: 'Courier New', monospace;
+
+      --scanline-opacity: 0.04;
+      --crt-curve: 2px;
+    }
+
+    /* ── GitHub corner ── */
+    .github-corner svg {
+      position: fixed;
+      top: 0;
+      right: 0;
+      z-index: 10000;
+      fill: var(--zx-bright-cyan);
+      color: var(--bg-deep);
+      border: 0;
+    }
+    .github-corner:hover .octo-arm {
+      animation: octocat-wave 560ms ease-in-out;
+    }
+    @keyframes octocat-wave {
+      0%, 100% { transform: rotate(0); }
+      20%, 60% { transform: rotate(-25deg); }
+      40%, 80% { transform: rotate(10deg); }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      font-family: var(--font-display);
+    }
+
+    /* ── CRT scanline overlay ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, var(--scanline-opacity)) 2px,
+        rgba(0, 0, 0, var(--scanline-opacity)) 4px
+      );
+    }
+
+    /* ── Main split layout ── */
+    #app {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto 1fr;
+      height: 100vh;
+      gap: 0;
+    }
+
+    /* ── Top bar ── */
+    #top-bar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 72px 6px 16px;
+      background: linear-gradient(180deg, #111128 0%, var(--bg-deep) 100%);
+      border-bottom: 2px solid var(--zx-bright-blue);
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    #top-bar .title {
+      color: var(--zx-bright-cyan);
+      text-shadow: 0 0 8px rgba(0, 251, 254, 0.5);
+    }
+
+    #top-bar .level-info {
+      color: var(--text-accent);
+    }
+
+    .score-display {
+      color: var(--zx-bright-green);
+      text-shadow: 0 0 6px rgba(0, 249, 47, 0.5);
+    }
+
+    /* ── Left: Game + Schematic column ── */
+    #game-panel {
+      display: flex;
+      flex-direction: column;
+      background: var(--zx-black);
+      border-right: 2px solid var(--zx-bright-blue);
+      overflow: hidden;
+    }
+
+    #game-viewport {
+      position: relative;
+      flex: 0 1 auto;
+      width: 100%;
+      aspect-ratio: 480 / 360;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    #game-canvas {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      display: block;
+    }
+
+    /* ── HUD overlay on game (top bar) ── */
+    #game-hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 100%);
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    #game-hud span { flex: 1; text-shadow: 0 0 4px rgba(0,251,254,0.4); }
+    .hud-lives { color: var(--zx-bright-red); text-align: left; }
+    .score-display { text-align: center; }
+    .hud-score { color: var(--zx-bright-yellow); text-align: right; }
+
+    /* ── Blueprint schematic panel ── */
+    #schematic-panel {
+      flex: 1;
+      min-height: 80px;
+      position: relative;
+      background: #060818;
+      border-top: 1px solid rgba(0, 100, 180, 0.3);
+      display: none;  /* hidden by default, shown during gameplay */
+      flex-direction: column;
+    }
+
+    #schematic-panel.visible {
+      display: flex;
+    }
+
+    #schematic-header {
+      display: flex;
+      align-items: center;
+      padding: 3px 8px;
+      background: linear-gradient(180deg, #0d1030 0%, #060818 100%);
+      border-bottom: 1px solid rgba(0, 100, 180, 0.25);
+      flex-shrink: 0;
+    }
+
+    #schematic-header .schematic-label {
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--zx-bright-cyan);
+      opacity: 0.7;
+    }
+
+    #schematic-body {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #schematic-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* ── Right: Editor panel ── */
+    #editor-panel {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-panel);
+      overflow: hidden;
+    }
+
+    /* ── Mission brief ── */
+    #mission-brief {
+      padding: 12px 16px;
+      background: linear-gradient(180deg, #0e1030 0%, var(--bg-panel) 100%);
+      border-bottom: 1px solid var(--zx-blue);
+      font-size: 10px;
+      line-height: 1.8;
+    }
+
+    #mission-brief .mission-label {
+      color: var(--zx-bright-magenta);
+      margin-bottom: 4px;
+      font-size: 10px;
+      letter-spacing: 2px;
+    }
+
+    #mission-brief .mission-text {
+      color: var(--text-dim);
+      font-family: var(--font-code);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    #mission-brief .concepts {
+      margin-top: 6px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .concept-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      background: rgba(0, 34, 199, 0.3);
+      border: 1px solid var(--zx-bright-blue);
+      border-radius: 2px;
+      color: var(--zx-bright-cyan);
+      font-family: var(--font-code);
+      font-size: 9px;
+    }
+
+    .concept-tag.clickable {
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .concept-tag.clickable:hover {
+      background: rgba(0, 251, 254, 0.15);
+      border-color: var(--zx-bright-cyan);
+      box-shadow: 0 0 8px rgba(0, 251, 254, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .concept-tag.clickable:active {
+      transform: translateY(0);
+      box-shadow: 0 0 4px rgba(0, 251, 254, 0.2);
+    }
+
+    /* ── SysML editor ── */
+    #editor-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    #editor-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--bg-editor);
+      border-bottom: 1px solid rgba(0, 199, 201, 0.15);
+    }
+
+    #editor-toolbar .file-label {
+      font-family: var(--font-code);
+      font-size: 10px;
+      color: var(--zx-cyan);
+      opacity: 0.7;
+    }
+
+    .toolbar-btn {
+      font-family: var(--font-display);
+      font-size: 7px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border: 1px solid;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: transparent;
+    }
+
+    .toolbar-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    .btn-analyse {
+      color: var(--zx-bright-cyan);
+      border-color: var(--zx-bright-cyan);
+    }
+    .btn-analyse:hover {
+      background: rgba(0, 251, 254, 0.1);
+      box-shadow: 0 0 12px rgba(0, 251, 254, 0.3);
+    }
+
+    .btn-launch {
+      color: var(--zx-bright-yellow);
+      border-color: var(--zx-bright-yellow);
+      cursor: default;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .btn-launch.ready {
+      animation: launch-pulse 1.2s infinite;
+    }
+
+    @keyframes launch-pulse {
+      0%, 100% { box-shadow: 0 0 4px rgba(255, 234, 0, 0.3); }
+      50% { box-shadow: 0 0 16px rgba(255, 234, 0, 0.6); background: rgba(255, 234, 0, 0.08); }
+    }
+
+    /* ── Zoom controls ── */
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .zoom-btn {
+      background: none;
+      border: 1px solid rgba(0, 199, 201, 0.25);
+      color: var(--zx-bright-cyan);
+      font-family: var(--font-code);
+      font-size: 12px;
+      width: 22px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.15s;
+      padding: 0;
+    }
+
+    .zoom-btn:hover {
+      background: rgba(0, 251, 254, 0.1);
+      border-color: var(--zx-bright-cyan);
+    }
+
+    .zoom-level {
+      font-family: var(--font-display);
+      font-size: 7px;
+      color: var(--zx-cyan);
+      opacity: 0.6;
+      min-width: 30px;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+
+    /* ── Code editor area ── */
+    #editor-area {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+      display: flex;
+    }
+
+    #line-numbers {
+      width: 40px;
+      padding: 8px 4px 8px 8px;
+      background: rgba(0, 0, 0, 0.3);
+      color: var(--zx-blue);
+      font-family: var(--font-code);
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: right;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    /* ── Syntax highlight overlay ── */
+    #editor-wrapper {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    #syntax-highlight {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+      padding: 8px 12px;
+      background: var(--bg-editor);
+      font-family: var(--font-code);
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre;
+      overflow: hidden;
+      pointer-events: none;
+      word-wrap: normal;
+      border: none;
+      tab-size: 4;
+    }
+
+    #syntax-highlight .kw { color: var(--zx-bright-magenta); font-weight: bold; }
+    #syntax-highlight .type { color: var(--zx-bright-green); }
+    #syntax-highlight .comment { color: var(--zx-cyan); opacity: 0.7; }
+    #syntax-highlight .string { color: var(--zx-bright-yellow); }
+    #syntax-highlight .hl-new {
+      display: inline-block;
+      width: 100%;
+      background: rgba(0, 249, 47, 0.09);
+      border-left: 2px solid rgba(0, 249, 47, 0.5);
+      padding-left: 2px;
+      margin-left: -2px;
+    }
+
+    #sysml-editor {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      padding: 8px 12px;
+      background: transparent;
+      color: transparent;
+      font-family: var(--font-code);
+      font-size: 12px;
+      line-height: 1.5;
+      border: none;
+      outline: none;
+      resize: none;
+      tab-size: 4;
+      white-space: pre;
+      overflow: auto;
+      caret-color: var(--zx-bright-cyan);
+    }
+
+    #sysml-editor::selection {
+      background: rgba(0, 43, 251, 0.4);
+    }
+
+    #sysml-editor::placeholder {
+      color: rgba(202, 202, 202, 0.2);
+    }
+
+    /* ── Autocomplete popup ── */
+    #autocomplete-popup {
+      position: fixed;
+      z-index: 5000;
+      background: #12122a;
+      border: 1px solid var(--zx-bright-blue);
+      border-radius: 2px;
+      min-width: 150px;
+      max-height: 180px;
+      overflow-y: auto;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+      font-family: var(--font-code);
+      font-size: 11px;
+    }
+
+    .ac-item {
+      padding: 3px 10px;
+      color: var(--zx-bright-white);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ac-item.active, .ac-item:hover {
+      background: rgba(0, 43, 251, 0.5);
+    }
+
+    .ac-kw {
+      color: var(--zx-bright-magenta);
+      font-size: 8px;
+      font-weight: bold;
+    }
+
+    .ac-ty {
+      color: var(--zx-bright-green);
+      font-size: 8px;
+      font-weight: bold;
+    }
+
+    /* ── Diagnostics panel ── */
+    #diagnostics-panel {
+      max-height: 180px;
+      overflow-y: auto;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.4);
+      border-top: 1px solid rgba(0, 199, 201, 0.15);
+      font-family: var(--font-code);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    #diagnostics-panel .diag-header {
+      font-family: var(--font-display);
+      font-size: 9px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--zx-white);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .diag-filters {
+      display: flex;
+      gap: 3px;
+      margin-left: auto;
+    }
+
+    .diag-filters button {
+      background: none;
+      border: 1px solid rgba(0, 199, 201, 0.25);
+      color: var(--zx-white);
+      font-family: var(--font-display);
+      font-size: 8px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      cursor: pointer;
+      opacity: 0.4;
+      transition: opacity 0.15s, border-color 0.15s;
+    }
+
+    .diag-filters button:hover {
+      opacity: 0.7;
+    }
+
+    .diag-filters button.active {
+      opacity: 1;
+      border-color: var(--zx-bright-cyan);
+      color: var(--zx-bright-cyan);
+    }
+
+    .diag-item {
+      padding: 2px 0;
+      display: flex;
+      gap: 8px;
+    }
+
+    .diag-item.error { color: var(--text-error); }
+    .diag-item.warning { color: var(--zx-bright-yellow); }
+    .diag-item.info { color: var(--zx-bright-cyan); }
+    .diag-item.success { color: var(--text-success); }
+
+    .diag-loc {
+      color: var(--zx-white);
+      opacity: 0.5;
+      min-width: 40px;
+    }
+
+    /* ── Reveal answer button ── */
+    .reveal-answer-btn {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      padding: 6px 12px;
+      background: rgba(201, 199, 0, 0.12);
+      border: 1px solid var(--zx-bright-yellow);
+      color: var(--zx-bright-yellow);
+      font-family: var(--font-display);
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      animation: reveal-pulse 1.2s ease-in-out infinite;
+      transition: background 0.15s;
+    }
+
+    .reveal-answer-btn:hover {
+      background: rgba(201, 199, 0, 0.25);
+    }
+
+    @keyframes reveal-pulse {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+
+    /* ── Mission overlay ── */
+    #mission-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 5, 15, 0.92);
+      backdrop-filter: blur(4px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s;
+    }
+
+    #mission-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .overlay-card {
+      max-width: 560px;
+      padding: 32px 40px;
+      background: linear-gradient(160deg, #0e1040 0%, #080820 100%);
+      border: 2px solid var(--zx-bright-blue);
+      border-radius: 4px;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(0, 43, 251, 0.2), inset 0 0 60px rgba(0, 0, 0, 0.4);
+    }
+
+    .overlay-card h2 {
+      font-size: 12px;
+      color: var(--zx-bright-yellow);
+      margin-bottom: 8px;
+      text-shadow: 0 0 12px rgba(255, 234, 0, 0.4);
+    }
+
+    .overlay-card .tier-label {
+      font-size: 7px;
+      color: var(--zx-bright-magenta);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .overlay-card p {
+      font-family: var(--font-code);
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.7;
+      margin-bottom: 20px;
+    }
+
+    .overlay-card .start-btn {
+      font-family: var(--font-display);
+      font-size: 9px;
+      padding: 8px 28px;
+      background: transparent;
+      border: 2px solid var(--zx-bright-green);
+      color: var(--zx-bright-green);
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: all 0.2s;
+    }
+
+    .overlay-card .start-btn:hover {
+      background: rgba(0, 249, 47, 0.1);
+      box-shadow: 0 0 20px rgba(0, 249, 47, 0.3);
+      transform: scale(1.05);
+    }
+
+    /* ── Title screen (transparent click-capture overlay; visuals rendered on canvas) ── */
+    #title-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    /* ── Victory overlay ── */
+    #victory-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 3000;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 5, 15, 0.95);
+      backdrop-filter: blur(6px);
+      opacity: 0;
+      transition: opacity 0.6s;
+      overflow-y: auto;
+    }
+
+    #victory-overlay.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    .victory-title {
+      font-family: 'Courier New', monospace;
+      font-size: 28px;
+      font-weight: bold;
+      color: var(--zx-bright-yellow);
+      text-shadow: 0 0 20px rgba(255, 234, 0, 0.6),
+                   0 0 40px rgba(255, 234, 0, 0.3);
+      letter-spacing: 4px;
+      margin-bottom: 8px;
+      animation: victory-glow 1.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes victory-glow {
+      from { text-shadow: 0 0 20px rgba(255, 234, 0, 0.6), 0 0 40px rgba(255, 234, 0, 0.3); }
+      to   { text-shadow: 0 0 30px rgba(255, 234, 0, 0.9), 0 0 60px rgba(255, 234, 0, 0.5), 0 0 80px rgba(255, 150, 0, 0.3); }
+    }
+
+    .victory-subtitle {
+      font-family: var(--font-display);
+      font-size: 11px;
+      color: var(--zx-bright-cyan);
+      letter-spacing: 3px;
+      margin-bottom: 20px;
+    }
+
+    .victory-score {
+      font-family: 'Courier New', monospace;
+      font-size: 18px;
+      font-weight: bold;
+      color: var(--zx-bright-green);
+      margin-bottom: 4px;
+    }
+
+    .victory-rank {
+      font-family: var(--font-display);
+      font-size: 12px;
+      color: var(--zx-bright-magenta);
+      margin-bottom: 16px;
+    }
+
+    /* Name entry */
+    .name-entry {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .name-entry label {
+      font-family: var(--font-display);
+      font-size: 10px;
+      color: var(--zx-bright-cyan);
+      letter-spacing: 2px;
+    }
+
+    .name-entry input {
+      width: 140px;
+      padding: 4px 8px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid var(--zx-bright-cyan);
+      color: var(--zx-bright-yellow);
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      text-align: center;
+      outline: none;
+    }
+
+    .name-entry input:focus {
+      border-color: var(--zx-bright-yellow);
+      box-shadow: 0 0 8px rgba(255, 234, 0, 0.3);
+    }
+
+    .name-entry button {
+      padding: 4px 14px;
+      background: rgba(0, 249, 47, 0.15);
+      border: 1px solid var(--zx-bright-green);
+      color: var(--zx-bright-green);
+      font-family: var(--font-display);
+      font-size: 10px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .name-entry button:hover {
+      background: rgba(0, 249, 47, 0.3);
+    }
+
+    /* High score table */
+    .highscore-table {
+      border-collapse: collapse;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      margin: 8px 0 16px;
+      min-width: 340px;
+    }
+
+    .highscore-table th {
+      color: var(--zx-bright-cyan);
+      font-size: 9px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-bottom: 1px solid rgba(0, 199, 201, 0.3);
+      text-align: left;
+    }
+
+    .highscore-table th:last-child,
+    .highscore-table td:last-child {
+      text-align: right;
+    }
+
+    .highscore-table td {
+      padding: 3px 10px;
+      color: var(--zx-white);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .highscore-table tr.current-player td {
+      color: var(--zx-bright-yellow);
+      text-shadow: 0 0 8px rgba(255, 234, 0, 0.4);
+    }
+
+    .highscore-table .rank-col {
+      color: var(--zx-bright-magenta);
+      min-width: 30px;
+    }
+
+    .highscore-table .name-col {
+      color: var(--zx-bright-green);
+      min-width: 100px;
+    }
+
+    .highscore-table .score-col {
+      color: var(--zx-bright-yellow);
+      text-align: right;
+    }
+
+    .highscore-table .level-col {
+      color: var(--zx-bright-cyan);
+      text-align: center;
+    }
+
+    .victory-continue {
+      margin-top: 12px;
+      padding: 8px 24px;
+      background: rgba(0, 199, 201, 0.12);
+      border: 1px solid var(--zx-bright-cyan);
+      color: var(--zx-bright-cyan);
+      font-family: var(--font-display);
+      font-size: 11px;
+      letter-spacing: 3px;
+      cursor: pointer;
+      transition: background 0.15s;
+      animation: reveal-pulse 1.8s ease-in-out infinite;
+    }
+
+    .victory-continue:hover {
+      background: rgba(0, 199, 201, 0.25);
+    }
+
+    /* Firework particles */
+    .firework-canvas {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Ensure victory content renders above firework canvas */
+    #victory-overlay > :not(.firework-canvas) {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--zx-blue); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--zx-bright-blue); }
+
+    /* ── Touch controls overlay ── */
+    #touch-controls {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 1500;
+      padding: 12px 16px;
+      pointer-events: none;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    #touch-controls .touch-left,
+    #touch-controls .touch-right {
+      display: flex;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    #touch-controls .touch-right {
+      flex-direction: row-reverse;
+    }
+
+    .touch-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 251, 254, 0.5);
+      background: rgba(5, 5, 20, 0.65);
+      color: var(--zx-bright-cyan);
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      pointer-events: auto;
+    }
+
+    .touch-btn:active, .touch-btn.pressed {
+      background: rgba(0, 251, 254, 0.25);
+      border-color: var(--zx-bright-cyan);
+      box-shadow: 0 0 12px rgba(0, 251, 254, 0.4);
+    }
+
+    .touch-btn.touch-thrust {
+      border-color: rgba(255, 234, 0, 0.5);
+      color: var(--zx-bright-yellow);
+    }
+    .touch-btn.touch-thrust:active, .touch-btn.touch-thrust.pressed {
+      background: rgba(255, 234, 0, 0.25);
+      border-color: var(--zx-bright-yellow);
+      box-shadow: 0 0 12px rgba(255, 234, 0, 0.4);
+    }
+
+    .touch-btn.touch-fire {
+      border-color: rgba(255, 50, 50, 0.5);
+      color: var(--zx-bright-red);
+      font-size: 11px;
+      font-family: var(--font-display);
+      letter-spacing: 1px;
+    }
+    .touch-btn.touch-fire:active, .touch-btn.touch-fire.pressed {
+      background: rgba(255, 50, 50, 0.25);
+      border-color: var(--zx-bright-red);
+      box-shadow: 0 0 12px rgba(255, 50, 50, 0.4);
+    }
+
+    /* ── Mobile responsive ── */
+    @media (max-width: 768px) {
+      #app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr;
+      }
+
+      #game-panel {
+        border-right: none;
+        border-bottom: 2px solid var(--zx-bright-blue);
+      }
+
+      #schematic-panel {
+        display: none !important;
+      }
+
+      #top-bar {
+        padding: 4px 12px;
+        font-size: 9px;
+      }
+
+      #game-hud {
+        font-size: 9px;
+        padding: 4px 6px;
+      }
+
+      .github-corner svg {
+        width: 40px;
+        height: 40px;
+      }
+
+      #editor-toolbar {
+        padding: 4px 8px;
+      }
+
+      #mission-brief {
+        padding: 8px 12px;
+        font-size: 9px;
+      }
+
+      #mission-brief .mission-text {
+        font-size: 11px;
+      }
+
+      #diagnostics-panel {
+        max-height: 120px;
+        font-size: 11px;
+      }
+
+      #touch-controls {
+        display: flex;
+      }
+
+      /* Add bottom padding so touch controls don't cover editor */
+      #editor-panel {
+        padding-bottom: 80px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      #top-bar {
+        font-size: 8px;
+        padding: 3px 8px;
+        letter-spacing: 0.5px;
+      }
+
+      .touch-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 18px;
+      }
+
+      .touch-btn.touch-fire {
+        font-size: 9px;
+      }
+
+      #mission-brief .concepts {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Title screen (canvas-rendered, this div just captures events) -->
+  <div id="title-screen" style="position:fixed;inset:0;z-index:2000;cursor:pointer;background:transparent;"></div>
+
+  <!-- Victory overlay -->
+  <div id="victory-overlay">
+    <canvas class="firework-canvas" id="firework-canvas"></canvas>
+    <div class="victory-title" id="victory-title">MISSION COMPLETE!</div>
+    <div class="victory-subtitle">YOU HAVE MASTERED SysML v2</div>
+    <div class="victory-score" id="victory-score">SCORE: 000000</div>
+    <div class="victory-rank" id="victory-rank"></div>
+    <div class="name-entry" id="name-entry">
+      <label>PILOT NAME:</label>
+      <input type="text" id="pilot-name" maxlength="12" placeholder="JETMAN" autocomplete="off" />
+      <button id="submit-score">SUBMIT</button>
+    </div>
+    <table class="highscore-table" id="highscore-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>PILOT</th>
+          <th>LVL</th>
+          <th>SCORE</th>
+        </tr>
+      </thead>
+      <tbody id="highscore-body"></tbody>
+    </table>
+    <button class="victory-continue" id="victory-continue">RETURN TO BASE</button>
+  </div>
+
+  <!-- Mission overlay -->
+  <div id="mission-overlay">
+    <div class="overlay-card">
+      <div class="tier-label" id="overlay-tier"></div>
+      <h2 id="overlay-title"></h2>
+      <p id="overlay-text"></p>
+      <button class="start-btn" id="overlay-start">BEGIN MISSION</button>
+    </div>
+  </div>
+
+  <!-- GitHub corner -->
+  <a href="https://github.com/daltskin/sysml-v2-jetpac" class="github-corner" aria-label="View source on GitHub" target="_blank" rel="noopener">
+    <svg width="56" height="56" viewBox="0 0 250 250" aria-hidden="true">
+      <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
+      <path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin:130px 106px;" class="octo-arm"></path>
+      <path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path>
+    </svg>
+  </a>
+
+  <!-- Main app -->
+  <div id="app">
+    <div id="top-bar">
+      <span class="title">JETPAC SysML v2</span>
+      <span class="level-info" id="level-display">LEVEL 01 — PACKAGES &amp; COMMENTS</span>
+    </div>
+
+    <div id="game-panel">
+      <div id="game-viewport">
+        <canvas id="game-canvas"></canvas>
+        <div id="game-hud">
+          <span class="hud-lives" id="hud-lives">♥♥♥</span>
+          <span class="score-display" id="score-display">SCORE: 000000</span>
+          <span class="hud-score" id="hud-dest">DEST: LOW ORBIT</span>
+        </div>
+      </div>
+      <div id="schematic-panel">
+        <div id="schematic-header">
+          <span class="schematic-label">BLUEPRINT</span>
+        </div>
+        <div id="schematic-body">
+          <canvas id="schematic-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div id="editor-panel">
+      <div id="mission-brief">
+        <div class="mission-label">MISSION BRIEF</div>
+        <div class="mission-text" id="brief-text">
+          Create a package for your rocket. Every spacecraft needs a blueprint!
+        </div>
+        <div class="concepts" id="brief-concepts">
+          <span class="concept-tag">package</span>
+          <span class="concept-tag">doc</span>
+          <span class="concept-tag">comment</span>
+        </div>
+      </div>
+
+      <div id="editor-container">
+        <div id="editor-toolbar">
+          <span class="file-label">rocket.sysml</span>
+          <div class="zoom-controls">
+            <button class="zoom-btn" id="zoom-out" title="Zoom out">−</button>
+            <span class="zoom-level" id="zoom-level">100%</span>
+            <button class="zoom-btn" id="zoom-in" title="Zoom in">+</button>
+          </div>
+          <span style="flex:1"></span>
+          <button class="toolbar-btn btn-analyse" id="btn-analyse">ANALYSE</button>
+          <span class="toolbar-btn btn-launch" id="btn-launch">🔧 BUILD</span>
+        </div>
+        <div id="editor-area">
+          <div id="line-numbers"></div>
+          <textarea id="sysml-editor" spellcheck="false" placeholder="// Write your SysML v2 model here..."></textarea>
+        </div>
+      </div>
+
+      <div id="diagnostics-panel">
+        <div class="diag-header">
+          <span>DIAGNOSTICS</span>
+          <div class="diag-filters">
+            <button data-diag-filter="all">ALL</button>
+            <button data-diag-filter="warn">WARN+</button>
+            <button data-diag-filter="errors" class="active">ERRORS</button>
+          </div>
+        </div>
+        <div id="diagnostics-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Touch controls (shown on mobile) -->
+  <div id="touch-controls">
+    <div class="touch-left">
+      <button class="touch-btn" data-action="left">◀</button>
+      <button class="touch-btn" data-action="right">▶</button>
+    </div>
+    <div class="touch-right">
+      <button class="touch-btn touch-fire" data-action="fire">DROP</button>
+      <button class="touch-btn touch-thrust" data-action="thrust">▲</button>
+    </div>
+  </div>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

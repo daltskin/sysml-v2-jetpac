@@ -1,0 +1,8 @@
+node_modules/
+dist/
+data/
+*.tsbuildinfo
+.DS_Store
+*.log
+.claude/skills/
+.github/prompts/
