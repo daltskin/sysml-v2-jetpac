@@ -71,6 +71,12 @@ describe('Cumulative code design', () => {
     expect(LEVELS[0].mission.solution).toContain('package Spacecraft');
   });
 
+  it('level 1 expectedPattern should accept quoted package names', () => {
+    const p = LEVELS[0].mission.expectedPattern;
+    expect(p.test('package Spacecraft {\n}')).toBe(true);
+    expect(p.test("package 'Spacecraft' {\n}")).toBe(true);
+  });
+
   it('final level (20) solution should compose prior definitions', () => {
     const l20 = LEVELS[19];
     expect(l20.mission.solution).toContain('part def JetpacSpacecraft');
@@ -84,5 +90,20 @@ describe('Cumulative code design', () => {
   it('no two levels should have identical starterCode', () => {
     const starters = LEVELS.map((l) => l.mission.starterCode);
     expect(new Set(starters).size).toBe(starters.length);
+  });
+
+  it('mission instructional text should use single quotes when quoting names', () => {
+    for (const level of LEVELS) {
+      const fields = [
+        level.mission.brief,
+        level.mission.starterCode,
+        level.mission.hint,
+        level.mission.solution,
+      ];
+
+      for (const field of fields) {
+        expect(field, `Level ${level.id} contains double quotes in mission text`).not.toContain('"');
+      }
+    }
   });
 });

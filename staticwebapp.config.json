@@ -6,7 +6,7 @@
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.applicationinsights.azure.com https://dc.services.visualstudio.com; font-src 'self'; frame-ancestors 'none'"
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.applicationinsights.azure.com https://dc.services.visualstudio.com https://js.monitor.azure.com; font-src 'self'; frame-ancestors 'none'"
   },
   "mimeTypes": {
     ".json": "application/json"

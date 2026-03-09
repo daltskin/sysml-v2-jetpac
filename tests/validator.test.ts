@@ -105,6 +105,15 @@ describe('validateCode', () => {
     expect(result.score).toBeGreaterThanOrEqual(100);
   });
 
+  it('should accept quoted package names when mission pattern allows them', async () => {
+    const level = mockLevel({
+      expectedPattern: /package\s+(?:Spacecraft|'Spacecraft')\s*\{/
+    });
+
+    const singleQuoted = await validateCode("package 'Spacecraft' { }", level, mockLSP({}));
+    expect(singleQuoted.passed).toBe(true);
+  });
+
   it('should give bonus for zero warnings', async () => {
     const result = await validateCode('part def Engine { }', mockLevel(), mockLSP({ diagnostics: [] }));
     expect(result.score).toBe(125); // 100 + 25 bonus

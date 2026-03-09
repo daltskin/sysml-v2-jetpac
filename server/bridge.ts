@@ -190,6 +190,10 @@ async function analyseCode(code: string, docId = 'editor'): Promise<{
   const uri = getDocUri(docId);
   const version = ++docVersion;
 
+  // Clear any previous diagnostics for this URI so stale parse errors are not
+  // reused if the server does not publish an empty diagnostics notification.
+  diagnosticsStore.set(uri, []);
+
   // Open / update the document
   sendNotification('textDocument/didOpen', {
     textDocument: { uri, languageId: 'sysml', version, text: code },
